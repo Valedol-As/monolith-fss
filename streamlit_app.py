@@ -8,15 +8,14 @@ import time
 # --- НАСТРОЙКИ СИСТЕМЫ ---
 st.set_page_config(layout="wide", page_title="FSS: Emergence Engine")
 
-# Темная тема через CSS для надежности
+# Исправленный блок CSS для темной темы
 st.markdown("""
     <style>
     .stApp { background-color: #05050a; }
-    .stText { color: #00ff00; }
     </style>
-    """, unsafe_allow_ Harris=True)
+    """, unsafe_allow_html=True)
 
-if 'world' not in st.session_state:
+if 'entities' not in st.session_state:
     st.session_state.entities = []
     st.session_state.clusters = []
 
@@ -46,7 +45,7 @@ class Cluster:
         for e in self.members:
             # Регуляция: тянем точку к центру системы
             e.pos += (self.center - e.pos) * 0.15
-            e.P += 0.1 # Система поддерживает жизнь своих членов
+            e.P += 0.2 # Система поддерживает жизнь своих членов
 
 # --- ИНТЕРФЕЙС ---
 st.title("🔗 МОНОЛИТ: СИНТЕЗ СЛОЖНОСТИ")
@@ -57,6 +56,7 @@ pop_size = st.sidebar.slider("Популяция", 10, 100, 40)
 if st.sidebar.button("ПЕРЕЗАПУСК"):
     st.session_state.entities = [Entity(i, random.random()*100, random.random()*100) for i in range(pop_size)]
     st.session_state.clusters = []
+    st.rerun()
 
 # --- ЛОГИКА ---
 def update_world():
@@ -67,7 +67,6 @@ def update_world():
 
     # Построение связей (Уровень 2)
     new_clusters = []
-    active_ids = set()
     
     for i, e1 in enumerate(ents):
         e1.connections = []
@@ -94,7 +93,12 @@ def update_world():
 # --- ОТРИСОВКА (Plotly) ---
 placeholder = st.empty()
 
-for _ in range(50): # Цикл анимации
+# Начальный запуск, если сущностей еще нет
+if not st.session_state.entities:
+    st.session_state.entities = [Entity(i, random.random()*100, random.random()*100) for i in range(pop_size)]
+
+# Цикл анимации (30 шагов)
+for _ in range(30):
     update_world()
     
     fig = go.Figure()
@@ -105,7 +109,7 @@ for _ in range(50): # Цикл анимации
             fig.add_trace(go.Scatter(
                 x=[e.pos[0], target.pos[0]], y=[e.pos[1], target.pos[1]],
                 mode='lines',
-                line=dict(color='rgba(0, 255, 255, 0.3)', width=1),
+                line=dict(color='rgba(0, 255, 255, 0.4)', width=1),
                 hoverinfo='none', showlegend=False
             ))
 
@@ -113,14 +117,19 @@ for _ in range(50): # Цикл анимации
     if st.session_state.entities:
         x_coords = [e.pos[0] for e in st.session_state.entities]
         y_coords = [e.pos[1] for e in st.session_state.entities]
-        colors = ['#ff00ff' if e.cluster_id is not None else '#ffff00' for e in st.session_state.entities]
-        sizes = [e.P/4 for e in st.session_state.entities]
+        # Используем HEX-коды цветов для точности
+        colors = ['#FF00FF' if e.cluster_id is not None else '#FFFF00' for e in st.session_state.entities]
+        sizes = [max(2, e.P/4) for e in st.session_state.entities]
         
         fig.add_trace(go.Scatter(
             x=x_coords, y=y_coords,
             mode='markers',
-            marker=dict(size=sizes, color=colors, line=dict(width=1, color='white')),
-            name='Сущности'
+            marker=dict(
+                size=sizes, 
+                color=colors, 
+                line=dict(width=1, color='white')
+            ),
+            showlegend=False
         ))
 
     # 3. Ауры Кластеров - Пурпурный туман
@@ -128,17 +137,17 @@ for _ in range(50): # Цикл анимации
         fig.add_trace(go.Scatter(
             x=[c.center[0]], y=[c.center[1]],
             mode='markers',
-            marker=dict(size=80, color='rgba(255, 0, 255, 0.1)', symbol='hexagon'),
-            name='Зона Регуляции'
+            marker=dict(size=80, color='rgba(255, 0, 255, 0.15)', symbol='hexagon'),
+            showlegend=False
         ))
 
     fig.update_layout(
-        paper_bgcolor='black',
-        plot_bgcolor='black',
+        paper_bgcolor='#05050a',
+        plot_bgcolor='#05050a',
         margin=dict(l=0, r=0, t=0, b=0),
         height=700,
-        xaxis=dict(range=[0, 100], showgrid=False, zeroline=False),
-        yaxis=dict(range=[0, 100], showgrid=False, zeroline=False),
+        xaxis=dict(range=[0, 100], showgrid=False, zeroline=False, visible=False),
+        yaxis=dict(range=[0, 100], showgrid=False, zeroline=False, visible=False),
         showlegend=False
     )
     
